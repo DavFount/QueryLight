@@ -36,3 +36,19 @@ func TestCancelledServiceCannotConnect(t *testing.T) {
 		t.Fatalf("expected cancelled service, got %+v", reply.Error)
 	}
 }
+
+func TestNativeCloseGuardIncludesConnectionsWithoutEditors(t *testing.T) {
+	s := NewService(context.Background())
+	defer s.cancel()
+	if s.HasOpenWork() {
+		t.Fatal("empty service should not prompt")
+	}
+	s.connections["table-workspace"] = &connection{}
+	if !s.HasOpenWork() {
+		t.Fatal("table-only workspace may contain frontend drafts and must prompt")
+	}
+	delete(s.connections, "table-workspace")
+	if s.HasOpenWork() {
+		t.Fatal("closed workspace should not prompt")
+	}
+}

@@ -30,4 +30,6 @@ Saved connection metadata, OS-backed passwords, versioned preferences, opt-in hi
 
 Prioritize the [queued table editing workflow](ui-design.md): local drafts, visible pending changes, review/discard, and Ctrl+S/Apply Changes. Ship transactional batch application and conflict feedback before broader manual transaction controls.
 
+Local text/NULL update drafts, review/discard, per-tab counts, and navigation guards are implemented for desktop acceptance. Apply Changes is disabled; inserts/deletes, additional types, privilege/schema revalidation, conflicts, and transactional batch execution remain pending.
+
 Explicit transactions and table editing with reliable row identity/conflict feedback. Test DDL implicit commits, connection loss, and uncertain write outcomes. SSH, export, and administration need separate scope decisions.

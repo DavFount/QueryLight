@@ -27,12 +27,22 @@ func (a *App) beforeClose(ctx context.Context) bool {
 	if a.service == nil || !a.service.HasOpenWork() {
 		return false
 	}
-	choice, err := runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+	choice, err := runtime.MessageDialog(ctx, closeDialogOptions())
+	return preventClose(choice, err)
+}
+
+func closeDialogOptions() runtime.MessageDialogOptions {
+	// Wails' Windows QuestionDialog uses native Yes/No buttons and returns
+	// those canonical strings; custom button captions are ignored there.
+	return runtime.MessageDialogOptions{
 		Type: runtime.QuestionDialog, Title: "Close Querylight?",
-		Message: "SQL tabs are kept in memory only. Closing discards their text, cancels running work, and closes database sessions. A running write may already have executed.",
-		Buttons: []string{"Close Querylight", "Keep working"}, DefaultButton: "Keep working", CancelButton: "Keep working",
-	})
-	return err != nil || choice != "Close Querylight"
+		Message: "Close Querylight and discard in-memory SQL text and local table drafts? Closing cancels running work and closes database sessions. A running SQL write may already have executed. Choose Yes to close or No to keep working.",
+		Buttons: []string{"Yes", "No"}, DefaultButton: "No", CancelButton: "No",
+	}
+}
+
+func preventClose(choice string, err error) bool {
+	return err != nil || choice != "Yes"
 }
 func (a *App) Connect(c application.ConnectionConfig) application.ConnectionReply {
 	return a.service.Connect(c, false)

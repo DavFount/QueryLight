@@ -1,6 +1,6 @@
 # First workflow: desktop test checklist
 
-This build is ready for user testing of connection → explorer → read-only table inspection → SQL execution. Queued table edits/Ctrl+S application, saved connections, history, pagination, and manual transaction controls are not implemented yet. SQL can modify data; use only the disposable fixtures below.
+This build is ready for user testing of connection → explorer → table inspection/local text drafts → SQL execution. Drafts cannot be applied yet; Ctrl+S application, saved connections, history, pagination, and manual transaction controls remain unimplemented. Explicit SQL can modify data; use only the disposable fixtures below.
 
 ## Start
 
@@ -24,7 +24,7 @@ Alternatively use `wails dev` for the same application with reload. The connecti
 
 ## Data inspection
 
-- [x] Open grid_rows: toolbar explains queued editing is not implemented and the preview remains read-only. User screenshots confirm 500 rows fetched on both engines (2026-10-15).
+- [x] Metadata-foundation build: grid_rows displayed its read-only explanation and fetched 500 rows on both engines in user screenshots (2026-10-15). The newer local-draft toolbar is covered by the steps below.
 - [x] Open odd\`table name: toolbar explains a primary key is required for initial queued editing. User screenshots confirm the identifier-quoting fixture loads on both engines (2026-10-15).
 
 - [ ] value_samples distinguishes NULL from empty text and preserves large integers/decimal trailing zeros.
@@ -35,6 +35,26 @@ Alternatively use `wails dev` for the same application with reload. The connecti
 - [ ] temporal_edge_cases shows zero dates without normalization.
 - [ ] odd\`table name opens correctly despite its embedded backtick.
 - [ ] Arrow keys navigate the focused grid; horizontal scrolling reveals additional columns.
+
+## Local table drafts
+
+Repeat on both local presets. These steps do not apply drafts to the database.
+
+- [ ] Open grid_rows, select the first label cell, click Edit local draft, enter multiline/Unicode text, then Queue draft. Expect a changed-cell dot/highlight, one pending row, and one changed cell.
+- [ ] Edit the same cell again: counts stay at one. Restore `Synthetic row 1`: the draft disappears. Review Changes shows original and draft values without modifying the server.
+- [ ] Open value_samples and edit nullable_text from NULL to empty text by unchecking NULL and leaving Draft value empty. Queue draft; confirm it displays `(empty)`. Edit it back to NULL; the draft disappears. A nonnullable text column must disable NULL.
+- [ ] Primary keys, numbers, temporal/JSON/binary/generated and unavailable values cannot be drafted. Keyless tables and SQL results remain read-only. large_cells must not offer editing its unavailable payload.
+- [ ] Queue a draft, switch SQL/table tabs, switch connections, and change explorer database. Return to the original table tab; its queued draft remains. Inspector input must be queued before switching.
+- [ ] Try Refresh, Close table, and Disconnect with a queued draft. Keep working preserves it. Explicitly confirm discard/refresh and verify only that tab’s drafts are removed.
+- [ ] Apply Changes remains disabled. Ctrl+S must not execute SQL, apply, or clear drafts. From a separate SQL tab, `SELECT label FROM querylight_test.grid_rows WHERE id=1;` still returns `Synthetic row 1` while its table draft is present.
+- [ ] Close all SQL tabs while retaining a table draft, then close the native window. In the Windows Yes/No dialog, No preserves the draft and Yes exits without requiring disconnect. No must be the default selection. Open connections conservatively prompt even with no drafts.
+- [ ] Discard Changes asks for confirmation, restores fetched values, and clears counts. Restart does not recover drafts; nothing is persisted.
+
+Limits: 256 KiB UTF-8 per draft cell, 256 changed cells, 1 MiB serialized drafts per tab. Validation errors retain inspector input. This slice supports text/NULL updates only; no insert/delete/key editing, transactional apply, permission validation, conflict checking, or SQL preview exists yet.
+
+Local-draft verification (2026-10-15): frontend typecheck/build, Go unit tests/vet, live regression on MariaDB 11.4.12-MariaDB-ubu2404 and MySQL 8.4.11, twelve Playwright tests, and Windows Wails packaging passed. Three draft-model tests cover coalescing/original retention, NULL/empty, unsupported values, key availability, Unicode and bounds. The new Edge workflow test covers local changes, tab retention, review/discard, refresh/close/disconnect guards, disabled Apply, and Ctrl+S making no StartExecution calls. Browser screenshot inspected at 1280×820. Live Go tests validate the backend, not frontend draft interactions; the manual steps above remain pending, including unchanged server values and native close behavior.
+
+Native-close bug reported and fixed (2026-10-15): Windows showed Yes/No, but the guard compared the result against a custom caption, preventing exit even after Yes. Wails' installed Windows implementation confirms native canonical responses. The guard now accepts only Yes and defaults to No. Frontend build, Go tests (including native dialog response/default regressions), go vet, Windows packaging, and diff checks passed. Desktop retest of Yes/No with an open connection remains pending; database/browser suites were not repeated for this dialog-only follow-up.
 
 ## SQL editor
 
@@ -75,7 +95,7 @@ DELETE FROM querylight_manual_test WHERE id = 2;
 - [ ] Window icon, minimize/restore, and clipboard work in WebView2.
 - [ ] Closing a SQL tab asks before discarding text; Keep working preserves it.
 - [ ] Disconnect asks before discarding tabs and cancels owned work.
-- [ ] Closing the application with SQL tabs/running work prompts; Keep working leaves it open, Close Querylight exits.
+- [ ] Closing the application with SQL tabs/running work prompts; No leaves it open, Yes exits. Windows native question dialogs use Yes/No rather than custom captions.
 - [ ] Restart shows a clean connection manager without persisted credentials/text.
 
 Record engine, screen scaling/window size, SQL used, expected/actual behavior, and any error message when reporting a failure. Avoid including real credentials.

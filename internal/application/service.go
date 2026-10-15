@@ -233,6 +233,11 @@ func (s *Service) Shutdown() {
 func (s *Service) HasOpenWork() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Table drafts live only in the frontend. Conservatively guard every open
+	// connection so closing all SQL editors cannot bypass draft protection.
+	if len(s.connections) > 0 {
+		return true
+	}
 	if len(s.editors) > 0 {
 		return true
 	}

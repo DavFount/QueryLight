@@ -8,6 +8,6 @@ The first milestone is connect → browse schemas/tables → inspect bounded row
 
 Use a schema sidebar, central editor/table tabs, and results below. Keep connect, run, cancel, and connection/schema context visible. Put occasional actions in contextual menus. Preserve editor text on errors. Distinguish loading, empty, failed, cancelled, successful, and truncated results. NULL must look different from empty text. Support keyboard navigation, visible focus, readable contrast, and non-color status indicators.
 
-Defer table editing, SSH tunnels, exports, advanced administration, and server monitoring. Saved connections, preferences, and opt-in history follow the first complete workflow.
+Local text/NULL table drafts now support review and discard; database application remains the next controlled-editing step. Defer SSH tunnels, exports, advanced administration, and server monitoring. Saved connections, preferences, and opt-in history remain later scope.
 
 Recommendation: no tray behavior initially. Minimize goes to the taskbar; closing releases sessions and exits. Add a close guard for unsaved SQL/running work/open transactions when those features exist. An opt-in tray needs an intentional background workflow first.

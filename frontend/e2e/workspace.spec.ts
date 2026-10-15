@@ -89,6 +89,7 @@ async function bridge(page: Page) {
         return { error: null }
       },
       StartInspection: async (_id: string, _schema: string, table: string) => {
+        ;(window as any).__inspections = ((window as any).__inspections ?? 0) + 1
         if (table === 'wide_table')
           return start({
             ...rows(1),
@@ -116,11 +117,15 @@ async function bridge(page: Page) {
           })
         return start({
           ...rows(table === 'empty_table' ? 0 : 500),
-          table: { engine: 'InnoDB', primaryKey: ['id'], columns: [], editCandidate: true,
+          table: { engine: 'InnoDB', primaryKey: ['id'], columns: [
+            { name: 'id', dataType: 'int', nullable: false, generated: false },
+            { name: 'label', dataType: 'varchar', nullable: true, generated: false },
+          ], editCandidate: true,
             readOnlyReason: 'Queued editing is not implemented yet; this preview is read-only.' },
         })
       },
       StartExecution: async (req: any) => {
+        ;(window as any).__executions = ((window as any).__executions ?? 0) + 1
         if (req.sql.includes('DELAY_START'))
           await new Promise((resolve) => setTimeout(resolve, 500))
         return start(
@@ -179,6 +184,43 @@ test('connection manager layout', async ({ page }) => {
   await page.screenshot({ path: 'test-results/connection-manager.png', fullPage: true })
 })
 
+test('local drafts retain changes across tabs, review and guard refresh without SQL execution', async ({ page }) => {
+  await connect(page)
+  await page.getByRole('button', { name: '▦ grid_rows', exact: true }).click()
+  await page.getByRole('gridcell', { name: 'Synthetic row 1', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit local draft' }).click()
+  await page.getByRole('textbox', { name: 'Draft value' }).fill('Draft only 雪\nsecond line')
+  await page.getByRole('button', { name: 'Queue draft' }).click()
+  await expect(page.locator('.draft-bar')).toContainText('1 pending rows · 1 changed cells')
+  await expect(page.locator('.grid-cell.changed')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/local-drafts.png', fullPage: true })
+  await expect(page.getByRole('button', { name: 'Apply Changes (unavailable)' })).toBeDisabled()
+  await page.keyboard.press('Control+s')
+  expect(await page.evaluate(() => (window as any).__executions ?? 0)).toBe(0)
+  await page.getByRole('tab', { name: /SQL 1/ }).click()
+  await page.getByRole('tab', { name: /grid_rows/ }).click()
+  await expect(page.locator('.draft-bar')).toContainText('1 changed cells')
+  await page.getByRole('button', { name: 'Review Changes' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Synthetic row 1')
+  await expect(page.getByRole('dialog')).toContainText('Draft only 雪')
+  await page.getByRole('button', { name: 'Back to table' }).click()
+  await page.getByRole('button', { name: '↻ Refresh', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('discards its local drafts')
+  await page.getByRole('button', { name: 'Keep working' }).click()
+  expect(await page.evaluate(() => (window as any).__inspections)).toBe(1)
+  await page.getByRole('button', { name: 'Close grid_rows', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('local drafts')
+  await page.getByRole('button', { name: 'Keep working' }).click()
+  await page.getByRole('button', { name: 'Disconnect', exact: true }).click()
+  await expect(page.getByRole('dialog')).toContainText('local table drafts')
+  await page.getByRole('button', { name: 'Keep working' }).click()
+  await page.getByRole('button', { name: 'Discard Changes' }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.locator('.draft-bar')).toHaveCount(0)
+  await expect(page.getByRole('gridcell', { name: 'Synthetic row 1', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => (window as any).__executions ?? 0)).toBe(0)
+})
+
 test('opening SQL retains the requested database when explorer selection changes', async ({ page }) => {
   await connect(page)
   await page.evaluate(() => { (window as any).__delayEditor = true })
@@ -227,7 +269,7 @@ test('virtualizes rows and columns and inspects exact values', async ({ page }) 
   await page.getByRole('button', { name: '▦ grid_rows', exact: true }).click()
   await expect(page.getByRole('grid')).toBeVisible()
   await expect(page.getByText('Result limit reached')).toBeVisible()
-  await expect(page.locator('.table-toolbar')).toContainText('this preview is read-only')
+  await expect(page.locator('.table-toolbar')).toContainText('Apply Changes not available yet')
   expect(await page.getByRole('gridcell').count()).toBeLessThan(100)
   await page.locator('.grid-scroll').evaluate((el) => {
     el.scrollTop = el.scrollHeight

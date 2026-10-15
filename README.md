@@ -1,6 +1,6 @@
 # Querylight
 
-A focused MariaDB/MySQL desktop SQL manager built with Wails v2, Go, Vue 3, TypeScript, and Vite. Status: first connection/explorer/SQL workflow ready for desktop testing. Table previews are read-only; queued editing and persistence are later work. Naming availability is unchecked.
+A focused MariaDB/MySQL desktop SQL manager built with Wails v2, Go, Vue 3, TypeScript, and Vite. Status: first connection/explorer/SQL workflow and local text drafts ready for desktop testing. Drafts cannot be applied to the database yet; persistence is later work. Naming availability is unchecked.
 
 ## Development
 
@@ -27,7 +27,7 @@ Start with the [desktop test checklist](docs/testing-m1.md) to try the first wor
 
 The [UI design](docs/ui-design.md) specifies the connection manager, explorer/editor workspace, and queued table editing with Ctrl+S.
 
-Table previews now include bounded engine/key/column metadata and read-only explanations as the first queued-editing foundation. Editing and Apply Changes remain unimplemented; structural eligibility does not imply write permission.
+Eligible table previews support local text/NULL drafts with changed-cell markers, pending row counts, Review, and Discard. Apply Changes is disabled and Ctrl+S does not write. Drafts remain in memory per tab; refresh, close, disconnect, and native exit guard their loss. See the [local draft test steps](docs/testing-m1.md#local-table-drafts). Structural eligibility does not imply write permission.
 
 For live local MariaDB and MySQL fixtures, see [database testing](docs/database-testing.md). Start both with `docker compose up -d --wait --wait-timeout 240`.
 

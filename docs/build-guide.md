@@ -65,7 +65,7 @@ Use Windows amd64 for the initial validation target. The existing environment ha
 For a new machine, install compatible Go/Node tooling, the pinned Wails v2 CLI, and Windows build/runtime prerequisites, then check:
 
 ```powershell
-Set-Location C:\projects\wails\querylight
+Set-Location C:\projects\QueryLight
 go version
 node --version
 npm --version
@@ -79,7 +79,7 @@ The scaffold already exists. Do not run `wails init` here. Local fixtures use Ma
 ## Install and develop
 
 ```powershell
-Set-Location C:\projects\wails\querylight
+Set-Location C:\projects\QueryLight
 npm ci --prefix frontend
 go mod download
 wails dev
@@ -226,7 +226,8 @@ Checked items have existing evidence from setup or explicit product approval. Un
 
 - [x] Add bounded table identity/column metadata and structural candidate reasons; unit rules and keyed/keyless metadata checks passed on both fixture engines (2026-10-15). This does not enable editing or validate write privileges.
 - [x] Define the connection/explorer/editor UX and queued editing design in [ui-design.md](ui-design.md).
-- [ ] Implement local table drafts, change indicators, review/discard, and Ctrl+S/Apply Changes.
+- [x] Implement bounded local text/NULL drafts, change indicators, pending row counts, review/discard, and navigation guards. Model/browser regressions pass; native draft acceptance pending.
+- [ ] Implement Ctrl+S/Apply Changes with Go-owned transactional batches. Apply remains disabled in the local-only slice.
 - [ ] Verify atomic draft batches, conflict handling, navigation guards, and uncertain commit reconciliation on both engines.
 
 - [ ] Implement explicit transactions on dedicated editor connections.

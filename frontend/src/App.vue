@@ -2,6 +2,8 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import ResultsGrid from './components/ResultsGrid.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import DraftReview from './components/DraftReview.vue'
+import { pendingRows, stageDraft, type Drafts } from './features/table-drafts'
 import {
   db,
   checked,
@@ -15,6 +17,7 @@ import {
 } from './services/database'
 
 interface Tab {
+  drafts: Drafts
   id: string
   kind: 'sql' | 'table'
   title: string
@@ -56,6 +59,21 @@ const connectionSuccess = ref('')
 const openingTab = ref(false)
 const disconnecting = ref(false)
 const confirm = ref<{ title: string; body: string; action: () => void }>()
+const reviewing = ref<Tab>()
+function queueDraft(w: Workspace, tab: Tab, row: number, col: number, text: string, isNull: boolean) {
+  if (!tab.result || tab.busy) return
+  try {
+    tab.drafts = stageDraft(tab.result, tab.drafts, row, col, text, isNull)
+    w.error = ''
+  } catch (error) { w.error = message(error) }
+}
+function discardDrafts(tab: Tab) {
+  confirm.value = { title: 'Discard local drafts?', body: 'This removes the active table tab’s local changes. The database has not been changed.', action: () => { tab.drafts = {} } }
+}
+function refreshTable(w: Workspace, tab: Tab) {
+  if (!pendingRows(tab.drafts)) { void run(w, tab); return }
+  confirm.value = { title: 'Discard drafts and refresh?', body: 'Refreshing replaces this preview and discards its local drafts. Keep working to retain them.', action: () => { tab.drafts = {}; void run(w, tab) } }
+}
 const form = reactive<Config>({
   name: '',
   host: '127.0.0.1',
@@ -170,6 +188,7 @@ async function loadTables(w: Workspace) {
 function makeTab(kind: 'sql' | 'table', schema: string): Tab {
   return reactive({
     id: crypto.randomUUID(),
+    drafts: {},
     kind,
     title: '',
     schema,
@@ -229,6 +248,7 @@ async function openTable(table: Table) {
   await run(w, tab)
 }
 async function run(w: Workspace, tab: Tab) {
+  if (pendingRows(tab.drafts)) return
   if (tab.busy || tab.lost || (tab.kind === 'sql' && !tab.sql.trim())) return
   const generation = ++tab.generation
   tab.busy = true
@@ -285,10 +305,10 @@ function requestClose(w: Workspace, tab: Tab) {
   const action = () => {
     void closeTab(w, tab)
   }
-  if (tab.busy || tab.kind === 'sql')
+  if (tab.busy || tab.kind === 'sql' || pendingRows(tab.drafts))
     confirm.value = {
       title: `Close ${tab.title}?`,
-      body: tab.busy
+      body: pendingRows(tab.drafts) ? 'This discards this table tab’s local drafts. No draft changes have been written to the database.' : tab.busy
         ? 'This cancels running work and closes the session. A write may already have executed.'
         : 'SQL text is kept in memory only and will be discarded when this tab closes.',
       action,
@@ -309,7 +329,7 @@ async function closeTab(w: Workspace, tab: Tab) {
 function requestDisconnect(w: Workspace) {
   confirm.value = {
     title: `Disconnect ${w.connection.name}?`,
-    body: 'This closes all tabs, discards their SQL text, and cancels running work. Nothing is saved to disk.',
+    body: 'This closes all tabs, discards their SQL text and local table drafts, and cancels running work. Nothing is saved to disk.',
     action: () => {
       void disconnect(w)
     },
@@ -543,7 +563,7 @@ onBeforeUnmount(() => {
               @click="workspace.activeTab = tab.id"
             >
               <span>{{ tab.kind === 'sql' ? '⌘' : '▦' }}</span
-              >{{ tab.title }}<span v-if="tab.busy" class="running-dot" /></button
+              >{{ tab.title }}<span v-if="pendingRows(tab.drafts)"> · {{ pendingRows(tab.drafts) }} pending</span><span v-if="tab.busy" class="running-dot" /></button
             ><button
               class="tab-close"
               :aria-label="`Close ${tab.title}`"
@@ -613,14 +633,14 @@ onBeforeUnmount(() => {
           </template>
           <div v-else class="table-toolbar">
             <strong>{{ activeTab.title }}</strong
-            ><span>{{ activeTab.result?.table?.readOnlyReason || 'Read-only preview · checking table metadata.' }}</span
+            ><span>{{ activeTab.result?.table?.editCandidate ? 'Text drafts only · Apply Changes not available yet.' : activeTab.result?.table?.readOnlyReason || 'Read-only preview · checking table metadata.' }}</span
             ><button
               v-if="activeTab.busy"
               :disabled="!activeTab.operation"
               @click="cancel(activeTab)"
             >
               Cancel</button
-            ><button v-else @click="run(workspace, activeTab)">↻ Refresh</button>
+            ><button v-else @click="refreshTable(workspace, activeTab)">↻ Refresh</button>
           </div>
           <div class="results-header">
             <strong>{{ activeTab.kind === 'table' ? 'Data' : 'Results' }}</strong
@@ -651,6 +671,8 @@ onBeforeUnmount(() => {
             v-if="activeTab.result"
             :key="`${activeTab.id}-${activeTab.generation}`"
             :result="activeTab.result"
+            :drafts="activeTab.drafts"
+            @draft="(row, col, text, isNull) => queueDraft(workspace!, activeTab!, row, col, text, isNull)"
           />
           <div v-else class="empty-state">
             <span class="empty-symbol">{{
@@ -674,6 +696,12 @@ onBeforeUnmount(() => {
                     : 'Run a statement to see results here. Rows and Statement modes can both change data.'
               }}
             </p>
+          </div>
+          <div v-if="activeTab.kind === 'table' && pendingRows(activeTab.drafts)" class="draft-bar">
+            <span role="status">{{ pendingRows(activeTab.drafts) }} pending rows · {{ Object.keys(activeTab.drafts).length }} changed cells · local only</span>
+            <button @click="reviewing = activeTab">Review Changes</button>
+            <button @click="discardDrafts(activeTab)">Discard Changes</button>
+            <button disabled title="Transactional apply is not implemented yet">Apply Changes (unavailable)</button>
           </div>
         </template>
         <div v-else class="empty-state">
@@ -701,5 +729,11 @@ onBeforeUnmount(() => {
       @cancel="confirm = undefined"
       @accept="acceptConfirm"
     />
+    <DraftReview v-if="reviewing?.result" :drafts="reviewing.drafts" :result="reviewing.result" @close="reviewing = undefined" />
   </div>
 </template>
+
+<style scoped>
+.draft-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel); }
+.draft-bar span { flex: 1; font-size: 12px; }
+</style>

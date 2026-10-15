@@ -3,8 +3,33 @@ import { computed, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import type { application } from '../../wailsjs/go/models'
 import { ClipboardSetText } from '../../wailsjs/runtime/runtime'
+import { draftKey, draftReason, stageDraft, type Drafts } from '../features/table-drafts'
 
-const props = defineProps<{ result: application.QueryResult }>()
+const props = defineProps<{ result: application.QueryResult; drafts?: Drafts }>()
+const emit = defineEmits<{ draft: [row: number, col: number, text: string, isNull: boolean] }>()
+const editing = ref(false)
+const draftText = ref('')
+const draftNull = ref(false)
+const draftError = ref('')
+const reason = computed(() => selected.value ? draftReason(props.result, selected.value.row, selected.value.col) : '')
+const nullable = computed(() => props.result.table?.columns.find((c) => c.name === column.value?.name)?.nullable ?? false)
+function visibleCell(row: number, col: number) {
+  return props.drafts?.[draftKey(row, col)]?.value ?? props.result.rows[row][col]
+}
+function edit() {
+  if (!cell.value || reason.value) return
+  draftText.value = cell.value.kind === 'null' ? '' : cell.value.value
+  draftNull.value = cell.value.kind === 'null'
+  editing.value = true
+  draftError.value = ''
+}
+function stage() {
+  if (!selected.value) return
+  try { stageDraft(props.result, props.drafts ?? {}, selected.value.row, selected.value.col, draftText.value, draftNull.value) }
+  catch (error) { draftError.value = error instanceof Error ? error.message : 'Invalid draft.'; return }
+  emit('draft', selected.value.row, selected.value.col, draftText.value, draftNull.value)
+  editing.value = false
+}
 const scroll = ref<HTMLElement>()
 const selected = ref<{ row: number; col: number }>()
 const copyMessage = ref('')
@@ -29,7 +54,7 @@ const colVirtualizer = useVirtualizer(
 const virtualRows = computed(() => rowVirtualizer.value.getVirtualItems())
 const virtualColumns = computed(() => colVirtualizer.value.getVirtualItems())
 const cell = computed(() =>
-  selected.value ? props.result.rows[selected.value.row]?.[selected.value.col] : undefined,
+  selected.value ? visibleCell(selected.value.row, selected.value.col) : undefined,
 )
 const column = computed(() =>
   selected.value ? props.result.columns[selected.value.col] : undefined,
@@ -55,6 +80,7 @@ async function copy() {
   }
 }
 function select(row: number, col: number) {
+  if (selected.value?.row !== row || selected.value?.col !== col) editing.value = false
   selected.value = { row, col }
   copyMessage.value = ''
 }
@@ -103,7 +129,7 @@ watch(
         ref="scroll"
         class="grid-scroll"
         role="grid"
-        aria-label="Read-only results"
+        :aria-label="result.table?.editCandidate ? 'Table results with local drafts' : 'Read-only results'"
         :aria-rowcount="result.rows.length + 1"
         :aria-colcount="result.columns.length"
       >
@@ -155,15 +181,16 @@ watch(
               class="grid-cell"
               :class="{
                 selected: selected?.row === row.index && selected?.col === col.index,
-                muted: result.rows[row.index][col.index].kind === 'null',
+                muted: visibleCell(row.index, col.index).kind === 'null',
                 unavailable: result.rows[row.index][col.index].unavailable,
+                changed: Boolean(drafts?.[draftKey(row.index, col.index)]),
               }"
               :style="{ width: `${col.size}px`, left: `${col.start}px` }"
               @click="select(row.index, col.index)"
               @focus="select(row.index, col.index)"
               @keydown="navigate($event, row.index, col.index)"
             >
-              {{ display(result.rows[row.index][col.index]) }}
+              <span v-if="drafts?.[draftKey(row.index, col.index)]" aria-label="Changed cell">● </span>{{ display(visibleCell(row.index, col.index)) }}
             </div>
           </div>
         </div>
@@ -179,9 +206,18 @@ watch(
               · base64</span
             ></span
           ><button :disabled="cell.unavailable" @click="copy">Copy value</button
+          ><button v-if="result.table?.editCandidate" :disabled="Boolean(reason)" :title="reason || 'Change a local draft; no database write'" @click="edit">Edit local draft</button
           ><button aria-label="Close value inspector" @click="selected = undefined">×</button>
         </div>
-        <p v-if="cell.unavailable">
+        <form v-if="editing" class="draft-editor" @submit.prevent="stage">
+          <p>Local draft only. Database application is not available yet.</p>
+          <label><input v-model="draftNull" type="checkbox" :disabled="!nullable" /> NULL</label>
+          <label>Draft value<textarea v-model="draftText" aria-label="Draft value" :disabled="draftNull" maxlength="262144" rows="3" /></label>
+          <button type="submit">Queue draft</button>
+          <button type="button" @click="editing = false">Cancel edit</button>
+          <p v-if="draftError" role="alert">{{ draftError }}</p>
+        </form>
+        <p v-else-if="cell.unavailable">
           Value exceeds the 256 KiB cell limit and was not transferred. Query a smaller projection
           to inspect it.
         </p>
@@ -189,6 +225,7 @@ watch(
           cell.kind === 'null' ? 'NULL' : cell.value === '' ? '(empty value)' : cell.value
         }}</pre>
         <small aria-live="polite">{{ copyMessage }}</small>
+        <small v-if="result.table?.editCandidate && reason">{{ reason }}</small>
       </div>
     </template>
   </div>
@@ -264,6 +301,10 @@ watch(
   background: #62e4c315;
   box-shadow: inset 0 0 0 1px var(--mint);
 }
+.grid-cell.changed { background: #62e4c322; border-bottom: 2px solid var(--mint); }
+.draft-editor textarea { display: block; width: 100%; font-family: Consolas, monospace; }
+.draft-editor p { margin: 4px 0; color: var(--muted); }
+.draft-editor button { margin: 6px 8px 0 0; }
 .grid-cell.muted {
   font-style: italic;
   color: var(--muted);

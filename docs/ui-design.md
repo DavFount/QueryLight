@@ -33,7 +33,11 @@ The sidebar is the SQL explorer: searchable schemas, tables, and views. Opening 
 
 ## Queued data edits
 
-Foundation implemented 2026-10-15: table previews carry bounded Go-owned engine, primary-key membership, and column metadata (type, nullability, generated status). The table toolbar explains read-only status. An InnoDB base table with a primary key is only a structural candidate; no cell editor or write/apply path exists yet. Unique-key fallback, supported value editors, privilege checks, schema revalidation, conflict detection, and transactional apply remain required. Primary-key membership is reported in column ordinal order, not index order. Metadata is descriptive and must never serve as write authorization.
+Foundation implemented 2026-10-15: table previews carry bounded Go-owned engine, primary-key membership, and column metadata (type, nullability, generated status). Primary-key membership is reported in column ordinal order, not index order. Metadata is descriptive and must never serve as write authorization.
+
+Local draft slice (2026-10-15): selecting a supported text cell in an InnoDB base table with a complete primary key exposes Edit local draft. Queue draft stores text or explicit NULL in that tab only. Repeated edits coalesce; restoring the original removes the draft. Changed cells carry a visible dot and highlight; the tab and action bar count distinct pending rows. Review shows original versus draft values and the original row key. Discard, refresh, close, and disconnect require confirmation before losing queued drafts; tab/connection/database selection preserves them. Values typed into the inspector must be queued before switching cells/tabs. Invalid drafts retain the inspector input and show an error.
+
+This slice has no database apply path: Apply Changes is visibly disabled, Ctrl+S is consumed without execution, and no privilege to write is inferred. Only CHAR/VARCHAR/TEXT variants are supported, with nullable text explicitly distinguished from empty text. Primary keys, generated columns, numeric/temporal/JSON/binary/unsupported and unavailable cells remain read-only. Insert/delete, key changes, unique-key fallback, SQL preview, privilege checks, schema revalidation, conflict detection, transactional apply, and commit uncertainty handling remain pending. Drafts are bounded to 256 changed cells and 1 MiB serialized per table tab, with a 256 KiB UTF-8 cell limit.
 
 Editing a table cell changes a local draft. No write happens until Apply Changes or Ctrl+S in the active table tab. The apply label avoids confusing draft submission with the SQL COMMIT command. Pending changes belong to their table tab, not to a connection-wide invisible queue.
 
@@ -62,7 +66,8 @@ M1 delivers the connection manager, workspace shell, explorer, read-only table g
 - [x] Record user-directed connection/explorer/editor navigation and queued-edit workflow.
 - [x] Build the connection manager and connected workspace.
 - [ ] Validate keyboard navigation, focus, resizing, and connection context.
-- [ ] Implement table drafts, change indicators, review, and discard.
+- [x] Implement local text/NULL update drafts, change indicators, review, and discard (model and browser regressions passed; native acceptance pending).
+- [ ] Extend drafts to insert/delete and supported additional types with lossless validation.
 - [ ] Make Ctrl+S and Apply Changes use the same active-tab apply path.
 - [ ] Prove no database changes occur while editing before apply.
 - [ ] Test insert/update/delete coalescing, NULL, large values, and key changes.

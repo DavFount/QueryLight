@@ -1,5 +1,7 @@
 # Decisions
 
+Local drafting slice (2026-10-15): enable bounded text/NULL drafts only on structurally eligible keyed InnoDB previews. Keep Apply disabled until Go-owned transactional application and conflict handling are implemented. Preserve immutable preview values and original keys; guard destructive navigation. Native close conservatively prompts for all open connections to cover frontend-only drafts without sending their contents to Go.
+
 Adopted for the first implementation: go-sql-driver/mysql v1.9.3, CodeMirror 6 with MySQL syntax, and TanStack Vue Virtual (rows and columns). Live driver tests pass on both fixture engines; trusted-certificate TLS remains unvalidated. Operations use bounded polling initially. The application service owns the initial registry and metadata logic; dedicated packages can be extracted when needed. Rows/Statement execution mode is explicit and never causes automatic SQL replay.
 
 UI direction (2026-10-15): connection manager followed by an explorer and tabbed data/SQL workspace. Queue table edits locally, then apply the active tab with Ctrl+S or Apply Changes. Keep SQL Run and explicit transaction Commit separate. Details and acceptance checklist: [ui-design.md](ui-design.md).
