@@ -224,6 +224,7 @@ Checked items have existing evidence from setup or explicit product approval. Un
 
 ### M3 and distribution
 
+- [x] Add bounded table identity/column metadata and structural candidate reasons; unit rules and keyed/keyless metadata checks passed on both fixture engines (2026-10-15). This does not enable editing or validate write privileges.
 - [x] Define the connection/explorer/editor UX and queued editing design in [ui-design.md](ui-design.md).
 - [ ] Implement local table drafts, change indicators, review/discard, and Ctrl+S/Apply Changes.
 - [ ] Verify atomic draft batches, conflict handling, navigation guards, and uncertain commit reconciliation on both engines.

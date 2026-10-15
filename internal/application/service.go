@@ -476,13 +476,22 @@ func (s *Service) StartInspection(id, schema, table string) ActionReply {
 					text += " ORDER BY " + strings.Join(keys, ",")
 				}
 				text += " LIMIT 501"
-				result, err = query(ctx, conn, text)
+				var metadata *TableMetadata
+				metadata, err = tableMetadata(ctx, conn, schema, table)
+				if err == nil {
+					result, err = query(ctx, conn, text)
+				}
 				if result != nil {
+					result.Table = metadata
 					result.Notice = "Read-only preview · first 500 rows."
 					if len(keys) == 0 {
 						result.Notice += " No primary key: order may change."
 					}
 					result.ElapsedMS = time.Since(start).Milliseconds()
+					encoded, _ := json.Marshal(result)
+					if len(encoded) > MaxResultBytes {
+						result, err = nil, errResultLimit
+					}
 				}
 			}
 		}

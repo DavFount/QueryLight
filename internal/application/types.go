@@ -53,12 +53,29 @@ type Cell struct {
 	ByteLength  int    `json:"byteLength"`
 }
 type QueryResult struct {
-	Columns      []Column `json:"columns"`
-	Rows         [][]Cell `json:"rows"`
-	Truncated    bool     `json:"truncated"`
-	Notice       string   `json:"notice"`
-	AffectedRows string   `json:"affectedRows"`
-	ElapsedMS    int64    `json:"elapsedMS"`
+	Table        *TableMetadata `json:"table,omitempty"`
+	Columns      []Column       `json:"columns"`
+	Rows         [][]Cell       `json:"rows"`
+	Truncated    bool           `json:"truncated"`
+	Notice       string         `json:"notice"`
+	AffectedRows string         `json:"affectedRows"`
+	ElapsedMS    int64          `json:"elapsedMS"`
+}
+
+// Candidate is structural eligibility only, never authorization to write.
+// Apply must revalidate metadata, privileges, and original row values.
+type TableMetadata struct {
+	Engine         string        `json:"engine"`
+	PrimaryKey     []string      `json:"primaryKey"`
+	Columns        []TableColumn `json:"columns"`
+	EditCandidate  bool          `json:"editCandidate"`
+	ReadOnlyReason string        `json:"readOnlyReason"`
+}
+type TableColumn struct {
+	Name      string `json:"name"`
+	DataType  string `json:"dataType"`
+	Nullable  bool   `json:"nullable"`
+	Generated bool   `json:"generated"`
 }
 type ExecutionRequest struct {
 	EditorID string `json:"editorID"`

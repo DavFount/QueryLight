@@ -22,6 +22,8 @@ Cancellation can close the driver connection. Mark lost sessions unusable, repor
 
 ## Lossless boundary
 
+Table inspections additionally return optional TableMetadata with engine, primary-key membership, and up to 256 columns describing data type, nullability, and generated status. Arbitrary SQL results do not carry table eligibility. Structural candidacy currently requires an InnoDB base table and primary key; all previews remain read-only. Future apply must independently revalidate identity, schema, privileges, supported values, and original row state. The final serialized inspection result is checked against the 5 MiB cap after metadata is attached.
+
 Use tagged cell DTOs: null, integer, decimal, float, text, temporal, json, binary, unsupported. Non-null payloads are strings; binary uses base64. Retain original column metadata and integer signedness. Use positional column IDs so duplicate column names work. Never convert BIGINT or DECIMAL to JavaScript Number. Keep temporal server text including zero dates/fractional seconds and raw JSON text; keep original payload separately from formatted display. Unknown types retain bytes and metadata instead of guessing.
 
 Validate scanning with parseTime=false: parseTime=true converts dates into time.Time, including zero-date normalization. Test BIT, unsigned BIGINT, decimal scale, invalid UTF-8, timezone/session behavior, JSON differences, and binary against both engines. Clipped/unavailable values must be explicitly marked and cannot be copied as complete originals.

@@ -613,7 +613,7 @@ onBeforeUnmount(() => {
           </template>
           <div v-else class="table-toolbar">
             <strong>{{ activeTab.title }}</strong
-            ><span>Queued editing is coming in a later milestone.</span
+            ><span>{{ activeTab.result?.table?.readOnlyReason || 'Read-only preview · checking table metadata.' }}</span
             ><button
               v-if="activeTab.busy"
               :disabled="!activeTab.operation"

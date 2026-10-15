@@ -114,7 +114,11 @@ async function bridge(page: Page) {
               ],
             ],
           })
-        return start(rows(table === 'empty_table' ? 0 : 500))
+        return start({
+          ...rows(table === 'empty_table' ? 0 : 500),
+          table: { engine: 'InnoDB', primaryKey: ['id'], columns: [], editCandidate: true,
+            readOnlyReason: 'Queued editing is not implemented yet; this preview is read-only.' },
+        })
       },
       StartExecution: async (req: any) => {
         if (req.sql.includes('DELAY_START'))
@@ -223,6 +227,7 @@ test('virtualizes rows and columns and inspects exact values', async ({ page }) 
   await page.getByRole('button', { name: '▦ grid_rows', exact: true }).click()
   await expect(page.getByRole('grid')).toBeVisible()
   await expect(page.getByText('Result limit reached')).toBeVisible()
+  await expect(page.locator('.table-toolbar')).toContainText('this preview is read-only')
   expect(await page.getByRole('gridcell').count()).toBeLessThan(100)
   await page.locator('.grid-scroll').evaluate((el) => {
     el.scrollTop = el.scrollHeight

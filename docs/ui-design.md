@@ -33,6 +33,8 @@ The sidebar is the SQL explorer: searchable schemas, tables, and views. Opening 
 
 ## Queued data edits
 
+Foundation implemented 2026-10-15: table previews carry bounded Go-owned engine, primary-key membership, and column metadata (type, nullability, generated status). The table toolbar explains read-only status. An InnoDB base table with a primary key is only a structural candidate; no cell editor or write/apply path exists yet. Unique-key fallback, supported value editors, privilege checks, schema revalidation, conflict detection, and transactional apply remain required. Primary-key membership is reported in column ordinal order, not index order. Metadata is descriptive and must never serve as write authorization.
+
 Editing a table cell changes a local draft. No write happens until Apply Changes or Ctrl+S in the active table tab. The apply label avoids confusing draft submission with the SQL COMMIT command. Pending changes belong to their table tab, not to a connection-wide invisible queue.
 
 - Highlight changed cells and label added/deleted rows; show the pending row-operation count on the tab and action bar.

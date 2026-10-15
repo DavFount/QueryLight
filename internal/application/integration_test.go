@@ -130,11 +130,18 @@ func TestLiveDatabaseWorkflow(t *testing.T) {
 			if quoted.Error != nil || len(quoted.Result.Rows) != 1 {
 				t.Fatalf("identifier quoting: %+v", quoted.Error)
 			}
+			if quoted.Result.Table == nil || quoted.Result.Table.EditCandidate || len(quoted.Result.Table.PrimaryKey) != 0 || !strings.Contains(quoted.Result.Table.ReadOnlyReason, "primary key") {
+				t.Fatal("keyless table must remain read-only with a reason")
+			}
 			s.ReleaseOperation(inspected.ID)
 			table := s.StartInspection(id, "querylight_test", "grid_rows")
 			preview := await(t, s, table.ID)
 			if preview.Error != nil || len(preview.Result.Rows) != 500 || !preview.Result.Truncated {
 				t.Fatal("table preview limit")
+			}
+			metadata := preview.Result.Table
+			if metadata == nil || !metadata.EditCandidate || metadata.Engine != "InnoDB" || len(metadata.PrimaryKey) != 1 || metadata.PrimaryKey[0] != "id" || len(metadata.Columns) != 2 || metadata.Columns[1].Nullable || metadata.Columns[1].Generated {
+				t.Fatalf("table editing foundation metadata: %+v", metadata)
 			}
 			s.ReleaseOperation(table.ID)
 			invalid := run("SELEC invalid", "rows")

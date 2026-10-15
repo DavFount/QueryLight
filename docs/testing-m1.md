@@ -24,6 +24,9 @@ Alternatively use `wails dev` for the same application with reload. The connecti
 
 ## Data inspection
 
+- [x] Open grid_rows: toolbar explains queued editing is not implemented and the preview remains read-only. User screenshots confirm 500 rows fetched on both engines (2026-10-15).
+- [x] Open odd\`table name: toolbar explains a primary key is required for initial queued editing. User screenshots confirm the identifier-quoting fixture loads on both engines (2026-10-15).
+
 - [ ] value_samples distinguishes NULL from empty text and preserves large integers/decimal trailing zeros.
 - [ ] Click a cell to inspect its full transferred value; Copy value preserves it exactly. Binary and unsupported values are explicitly base64.
 - [ ] grid_rows shows 500 rows and Result limit reached; scroll to the bottom.
@@ -76,6 +79,12 @@ DELETE FROM querylight_manual_test WHERE id = 2;
 - [ ] Restart shows a clean connection manager without persisted credentials/text.
 
 Record engine, screen scaling/window size, SQL used, expected/actual behavior, and any error message when reporting a failure. Avoid including real credentials.
+
+User desktop evidence, 2026-10-15: Rows-mode `DO 1` displays the already-executed notice; Statement-mode `DO 1` completes with zero affected rows and its execution notice. Existing SQL 1 retains querylight_test and successfully selects value_samples after the explorer switches to information_schema; new SQL 6 uses information_schema. Screenshots establish database-context behavior but do not independently establish the precise timing of a race reproduction. Native write/cancel/clipboard/close acceptance remains pending.
+
+Follow-up on this PC: elevated Docker inspection confirmed both fixture services healthy (the earlier API denial was sandbox access). Live integration was rerun successfully on MariaDB 11.4.12-MariaDB-ubu2404 and MySQL 8.4.11, including the new primary-key/column metadata and keyless read-only checks. Unit checks and go vet passed for the table metadata foundation. Views/non-InnoDB structural rejection has unit coverage; live view/generated-column/nontransactional editing fixtures and all actual draft application remain future work.
+
+Table metadata delivery checks: frontend typecheck/build, all eight Edge mock tests, and Windows `wails build` also passed. Wails regenerated the DTO bindings; its generated models contain whitespace-only lines reported by `git diff --check`. These were left generator-owned per contributor instructions. User desktop screenshots confirm the new read-only explanations and successful previews on both engines: grid_rows fetched 500 rows (MariaDB 20 ms, MySQL 24 ms); the keyless identifier fixture fetched one row (MariaDB 12 ms, MySQL 16 ms). These displayed query durations are not scrolling or overall UI performance measurements. Actual queued editing remains unimplemented.
 
 ## Automated verification
 
