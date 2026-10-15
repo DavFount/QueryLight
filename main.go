@@ -17,14 +17,18 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Querylight",
-		Width:  1024,
-		Height: 768,
+		Title:     "Querylight",
+		Width:     1280,
+		Height:    820,
+		MinWidth:  900,
+		MinHeight: 600,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
+		OnBeforeClose:    app.beforeClose,
 		Bind: []interface{}{
 			app,
 		},
@@ -34,4 +38,3 @@ func main() {
 		println("Error:", err.Error())
 	}
 }
-

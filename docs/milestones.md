@@ -8,6 +8,8 @@ Inspect scaffold, initialize local Git, document product/architecture/commands/d
 
 ## M1: first complete workflow
 
+Implementation is ready for [desktop acceptance testing](testing-m1.md). Automated driver/integration and browser UI checks pass; native WebView2 behavior, trusted TLS, and performance measurements are still acceptance work. Table inspection is a first-page preview, without pagination.
+
 1. Compatibility spike: select exact MariaDB/MySQL fixture versions; validate driver, lossless codec, TLS, dedicated sessions, and cancellation.
 2. Temporary connection form/session registry: success, bad authentication, unreachable server, timeout, disconnect, reconnect. No password persistence yet.
 3. Schema/table browser and bounded inspection: permitted objects, unusual identifiers, loading/empty/error states, explicit row limits.
@@ -25,5 +27,7 @@ Demonstrate responsive scrolling of a 500-row wide result on the recorded Window
 Saved connection metadata, OS-backed passwords, versioned preferences, opt-in history with retention/deletion, and unsaved query recovery. Test locked/missing secret storage and confirm no plaintext passwords in files/logs/history.
 
 ## M3: controlled editing
+
+Prioritize the [queued table editing workflow](ui-design.md): local drafts, visible pending changes, review/discard, and Ctrl+S/Apply Changes. Ship transactional batch application and conflict feedback before broader manual transaction controls.
 
 Explicit transactions and table editing with reliable row identity/conflict feedback. Test DDL implicit commits, connection loss, and uncertain write outcomes. SSH, export, and administration need separate scope decisions.

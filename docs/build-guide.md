@@ -2,7 +2,7 @@
 
 This is the implementation roadmap and day-to-day build guide. Read it with [architecture.md](architecture.md) for database/session/value rules and [product.md](product.md) for UX scope. The checklist below is the source of truth for completion; check an item only when its stated evidence exists.
 
-Status as of 2026-10-15: the Wails demo builds on Windows. Product database features have not been implemented. Earlier build results are recorded evidence, not a claim that every later change has been tested.
+Status as of 2026-10-15: the connection manager, explorer, SQL editor, and read-only grid are implemented for desktop testing. See [testing-m1.md](testing-m1.md) for test steps and verified coverage. Queued editing/persistence are still planned.
 
 ## System architecture
 
@@ -13,31 +13,31 @@ flowchart TD
     Bridge --> App[Go application facade / typed DTOs]
     App --> Sessions[Session and operation registry]
     Sessions --> DB[Database adapter / metadata / value codec]
-    DB --> SQL[database/sql and proposed MySQL driver]
+    DB --> SQL[database/sql and MySQL driver]
     SQL --> Servers[MariaDB or MySQL]
     App --> Preferences[Versioned local preferences: later]
     App --> Credentials[OS credential storage: later]
 ```
 
-The frontend must never open database connections. Go converts database values to lossless bounded DTOs before returning them. Events notify the frontend of operation state; result retrieval remains possible if an event is missed. A session ID identifies backend-owned state, not a frontend-owned connection.
+The frontend must never open database connections. Go converts database values to lossless bounded DTOs before returning them. The frontend polls operation state every 180 ms and retrieves completed results once. Completion events can be added later. A session ID identifies backend-owned state, not a frontend-owned connection.
 
 ### Current files and planned responsibilities
 
 | Location | Responsibility | Current state |
 | --- | --- | --- |
-| `main.go` | Window configuration, dependency composition, startup/shutdown hooks | Scaffold; Querylight window title |
-| `app.go` | Thin bound application facade | Greeting demo only |
-| `internal/application/` | Connection, browsing, execution use cases and DTOs | Planned |
-| `internal/session/` | Dedicated editor connections, operation registry, cancellation, cleanup | Planned |
-| `internal/database/` | Driver config, schema metadata, inspection, value codec | Planned |
+| `main.go` | Window configuration, dependency composition, startup/shutdown hooks | Implemented; startup/shutdown/close guard |
+| `app.go` | Thin bound application facade | Implemented |
+| `internal/application/` | Connections, metadata, editor registry, operations, DTOs | Implemented |
+| `internal/session/` | Future extraction from application service | Deferred until needed |
+| `internal/database/` | Lossless value codec and identifier quoting | Implemented; driver/metadata currently in application |
 | `internal/preferences/` | Versioned metadata/preferences/history policy | Later |
 | `internal/credentials/` | OS secret-store adapter | Later |
-| `frontend/src/features/connections/` | Connect form and connection state | Planned |
-| `frontend/src/features/browser/` | Schema/table navigation | Planned |
-| `frontend/src/features/editor/` | SQL text, execution controls, editor integration | Planned |
-| `frontend/src/features/results/` | Virtualized grid and value inspection | Planned |
-| `frontend/src/services/` | Typed Wails wrapper and error/status mapping | Planned |
-| `frontend/src/components/` | Shared accessible presentation | Demo component present |
+| `frontend/src/features/connections/` | Future extraction from App.vue workspace | Currently in App.vue |
+| `frontend/src/features/browser/` | Future extraction from App.vue workspace | Currently in App.vue |
+| `frontend/src/features/editor/` | SQL state and controls | App.vue plus components/SqlEditor.vue |
+| `frontend/src/features/results/` | Virtualized grid and value inspection | components/ResultsGrid.vue |
+| `frontend/src/services/` | Typed Wails wrapper and error/status mapping | Implemented |
+| `frontend/src/components/` | CodeMirror editor, grid, confirmation dialog | Implemented |
 | `frontend/wailsjs/` | Generated Go bindings and Wails runtime | Present; never hand-edit |
 | `assets/branding/` | Editable approved logo source | Present |
 | `frontend/public/favicon.svg` | Browser favicon | Present |
@@ -56,7 +56,7 @@ Create these packages/folders as a vertical slice needs them. Keep the facade th
 6. Cancel signals the registered context. If the driver loses the connection, invalidate the session and report uncertainty about writes/transactions. Never replay SQL automatically.
 7. Disconnect/shutdown cancels owned work and closes rows/connections; later transaction support must track explicit transaction state.
 
-The exact DTO fields and methods are an implementation deliverable. See [architecture.md](architecture.md) for proposed methods, tagged values, initial limits, pagination rules, and security requirements.
+Bridge DTOs are defined in internal/application/types.go; generated TypeScript models are in frontend/wailsjs/go/models.ts. See [architecture.md](architecture.md) for proposed methods, tagged values, initial limits, pagination rules, and security requirements.
 
 ## Development prerequisites
 
@@ -74,7 +74,7 @@ wails doctor
 git status --short --branch
 ```
 
-The scaffold already exists. Do not run `wails init` here. Exact database fixture versions are still to be selected; a database server is not required to compile the demo.
+The scaffold already exists. Do not run `wails init` here. Local fixtures use MariaDB 11.4.12 and MySQL 8.4.11; database servers are required for integration tests, not compilation.
 
 ## Install and develop
 
@@ -95,7 +95,7 @@ Optional frontend-only work:
 npm run dev --prefix frontend
 ```
 
-Browser-only Vite is useful for presentation work but cannot validate the native Go bridge. Use a deliberate mock adapter for isolated UI development once one exists, and validate actual operations through Wails.
+Browser-only Vite is useful for presentation work but cannot validate the native Go bridge. The Playwright suite supplies a deliberate test-only bridge mock. Validate actual operations through Wails.
 
 ## Validate and build
 
@@ -108,7 +108,7 @@ go vet ./...
 wails build
 ```
 
-The frontend command runs `vue-tsc --noEmit` and Vite. It must precede standalone Go checks because `main.go` embeds `frontend/dist`. `go test` currently reports no test files: it verifies compilation but does not prove feature behavior. Add meaningful tests as database code arrives.
+The frontend command runs `vue-tsc --noEmit` and Vite. It must precede standalone Go checks because `main.go` embeds `frontend/dist`. Go unit tests cover codecs and request validation. Tagged live integration tests cover both Docker engines; Playwright covers UI behavior with a mock. See testing-m1.md for commands and limits of that coverage.
 
 Wails generates bindings/assets, compiles the frontend, and builds the Windows application using `wails.json`, Go code, and `build/` inputs. Output: `build/bin/querylight.exe`. This is a desktop executable, not evidence of a tested installer or signed release.
 
@@ -117,7 +117,7 @@ Wails generates bindings/assets, compiles the frontend, and builds the Windows a
 .\build\bin\querylight.exe
 ```
 
-Check launch, title, icon, content, resize, focus, minimize/restore, and close. Compilation alone does not check these behaviors. The greeting demo remains until the first feature slice replaces it.
+Check launch, title, icon, content, resize, focus, minimize/restore, and close. Compilation alone does not check these behaviors. The greeting demo has been replaced with the first database workflow.
 
 ## Build troubleshooting
 
@@ -161,7 +161,7 @@ Checked items have existing evidence from setup or explicit product approval. Un
 - [ ] Inspect favicon and Windows icon at small sizes/in Explorer.
 - [ ] Confirm remote ownership, visibility, authentication, and hosted repository spelling.
 - [ ] Decide licensing and research name availability before public distribution.
-- [ ] Review/stage the initial files and make the first commit.
+- [x] Initial commits exist (99ac089 and 9fdebd8 observed); current feature work remains uncommitted.
 - [ ] Push only after remote details and push authorization are confirmed.
 
 ### M1A — compatibility and contracts
@@ -170,43 +170,46 @@ Checked items have existing evidence from setup or explicit product approval. Un
 
 - [x] Select and verify initial fixture versions: MariaDB 11.4.12 and MySQL 8.4.11.
 - [x] Start both local containers healthy and smoke-test fixture counts, numeric boundaries, binary, oversized cells, and zero dates (2026-10-15).
-- [ ] Create disposable test databases and a documented fixture runner.
-- [ ] Validate the proposed MySQL driver with both engines and TLS settings.
-- [ ] Define bridge DTOs, safe error codes, operation states, and ownership rules.
-- [ ] Implement/test lossless cell conversion including NULL, BIGINT, DECIMAL, temporal, JSON, BIT, binary, and invalid text bytes.
-- [ ] Validate session variables, cancellation, connection loss, and uncertain write outcomes.
+- [x] Create disposable test databases and a documented fixture runner.
+- [x] Validate the MySQL driver on both local engines without TLS.
+- [ ] Validate trusted-certificate TLS, rejection paths, and custom certificate requirements.
+- [x] Define bridge DTOs, safe error codes, operation states, and ownership rules.
+- [x] Implement/test lossless cell conversion including NULL, BIGINT, DECIMAL, temporal, JSON, BIT, binary, and invalid text bytes.
+- [x] Verify dedicated session variables, isolation, cancellation-induced connection loss, and honest uncertainty feedback.
+- [ ] Exercise independent network/server loss and uncertain commit acknowledgement with a controlled fault fixture.
 - [ ] Finalize row/byte/cell/time/concurrency limits using measurements.
 
 ### M1B — connection and browsing
 
-- [ ] Implement temporary connection form and backend config validation.
-- [ ] Implement session registry, explicit disconnect/reconnect, and shutdown cleanup.
+- [x] Implement temporary connection form and backend config validation.
+- [x] Implement session registry, explicit disconnect/reconnect, and shutdown cleanup.
 - [ ] Cover bad credentials, network failure, TLS failure, and timeout feedback.
-- [ ] Implement permitted schema/table listing and refresh.
-- [ ] Implement bounded table inspection with safe identifier quoting/value binding.
-- [ ] Define deterministic pagination where keys allow it; label unstable ordering otherwise.
-- [ ] Show loading, empty, failed, disconnected, and truncated states.
+- [x] Implement permitted schema/table listing and refresh.
+- [x] Implement bounded table inspection with safe identifier quoting/value binding.
+- [x] Order first-page previews by primary key where present; label missing-primary-key ordering.
+- [ ] Implement deterministic pagination where keys allow it.
+- [x] Show loading, empty, failed, disconnected, and truncated states.
 
 ### M1C — editor and results
 
-- [ ] Validate/adopt CodeMirror 6 with keyboard/focus behavior.
-- [ ] Implement explicit single-statement run, operation registration, and cancellation.
-- [ ] Display results/affected rows, elapsed time, errors, and connection context.
+- [x] Validate/adopt CodeMirror 6 with keyboard/focus behavior.
+- [x] Implement explicit single-statement run, operation registration, and cancellation.
+- [x] Display results/affected rows, elapsed time, errors, and connection context.
 - [ ] Handle unexpected result sets explicitly with multiStatements disabled.
-- [ ] Validate/adopt a grid virtualization solution; bound retained data.
-- [ ] Support duplicate column names, NULL styling, complete-value copying, and oversized-cell indicators.
-- [ ] Prevent late results from replacing newer session/run state.
+- [x] Validate/adopt a grid virtualization solution; bound retained data.
+- [x] Support duplicate column names, NULL styling, complete-value copying, and oversized-cell indicators.
+- [x] Prevent late results from replacing newer session/run state.
 
 ### M1 acceptance gate
 
 - [ ] Pass the value/metadata fixture matrix on both recorded engine versions.
-- [ ] Demonstrate row and serialized-byte caps and explicit truncation.
+- [x] Demonstrate row and serialized-byte caps and explicit truncation.
 - [ ] Demonstrate responsive editor/grid behavior while a slow query runs.
 - [ ] Verify cancel, disconnect during work, repeated execution, and cleanup.
 - [ ] Verify SQL errors preserve editor contents and writes report affected rows.
-- [ ] Verify cancellation never claims rollback or definite non-execution.
+- [x] Verify cancellation never claims rollback or definite non-execution.
 - [ ] Record performance measurements and known limitations on Windows.
-- [ ] Pass frontend/Go checks and the Windows package build for the completed milestone.
+- [x] Pass frontend/Go checks, six browser UI tests, live integration on both engines, and the Windows package build for this implementation.
 - [ ] Manually validate the real desktop workflow: connect → browse → inspect → execute.
 
 ### M2 — persistence
@@ -215,10 +218,15 @@ Checked items have existing evidence from setup or explicit product approval. Un
 - [ ] Save non-secret connection metadata with opaque credential references.
 - [ ] Add versioned preferences and migration tests.
 - [ ] Add opt-in history with retention/deletion and sensitive-data controls.
-- [ ] Add unsaved-query recovery and close guards.
+- [x] Add tab/disconnect/native-close guards for in-memory SQL and running work.
+- [ ] Add unsaved-query persistence/recovery.
 - [ ] Verify no passwords or default SQL logging in settings/logs/history.
 
 ### M3 and distribution
+
+- [x] Define the connection/explorer/editor UX and queued editing design in [ui-design.md](ui-design.md).
+- [ ] Implement local table drafts, change indicators, review/discard, and Ctrl+S/Apply Changes.
+- [ ] Verify atomic draft batches, conflict handling, navigation guards, and uncertain commit reconciliation on both engines.
 
 - [ ] Implement explicit transactions on dedicated editor connections.
 - [ ] Validate implicit DDL commits and transaction/connection-loss recovery.

@@ -1,5 +1,9 @@
 # Architecture
 
+Implemented first slice: the application service owns connections, dedicated editor sessions, metadata, and cancellable operations; the database package handles lossless value conversion and identifier quoting. Vue uses a connection/explorer/tab workspace, lazy-loaded CodeMirror 6, and TanStack row/column virtualization. Split session/metadata packages as complexity grows rather than introducing empty layers. The current facade uses GetOperation polling every 180 ms instead of completion events; completed immutable results are retrieved once by the UI.
+
+Execution mode is explicit: Rows uses QueryContext; Statement uses ExecContext for affected-row counts. Both can modify data. No SQL is automatically replayed to infer a mode. SQL tabs are connection-bound; changing the explorer schema affects new tabs only. Closed editor connections are physically discarded to prevent session/transaction state leaking into pooled metadata work.
+
 See [build-guide.md](build-guide.md) for the system diagram, file responsibilities, execution flow, build procedure, and implementation checklist. This document defines the database and boundary constraints in more detail.
 
 Go owns transport, credentials, sessions, execution, cancellation, and value conversion. Vue owns presentation and editor/navigation state. Wails exposes a small typed facade with generated bindings; driver objects and DSNs never cross it.
