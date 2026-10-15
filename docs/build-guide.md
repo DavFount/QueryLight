@@ -166,7 +166,10 @@ Checked items have existing evidence from setup or explicit product approval. Un
 
 ### M1A — compatibility and contracts
 
-- [ ] Select and record exact MariaDB and MySQL fixture versions.
+- [x] Add local Compose services and synthetic initialization fixtures; see [database testing](database-testing.md).
+
+- [x] Select and verify initial fixture versions: MariaDB 11.4.12 and MySQL 8.4.11.
+- [x] Start both local containers healthy and smoke-test fixture counts, numeric boundaries, binary, oversized cells, and zero dates (2026-10-15).
 - [ ] Create disposable test databases and a documented fixture runner.
 - [ ] Validate the proposed MySQL driver with both engines and TLS settings.
 - [ ] Define bridge DTOs, safe error codes, operation states, and ownership rules.

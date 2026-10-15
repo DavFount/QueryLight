@@ -10,6 +10,7 @@ frontend/dist
 *.p12
 *.pfx
 *.sql
+!test/database/init/*.sql
 *.dump
 *.sqlite*
 local-data/

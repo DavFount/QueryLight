@@ -23,6 +23,8 @@ Verified 2026-10-15: Windows amd64, Wails 2.16.0, Go 1.27.2, Node 24.22.0. User 
 
 ## Structure and plans
 
+For live local MariaDB and MySQL fixtures, see [database testing](docs/database-testing.md). Start both with `docker compose up -d --wait --wait-timeout 240`.
+
 main.go configures the desktop; app.go is the greeting demo bridge. frontend/src holds Vue components; frontend/wailsjs holds generated bindings. build holds icons and packaging inputs.
 
 Read [product](docs/product.md), [architecture](docs/architecture.md), [milestones](docs/milestones.md), [decisions](docs/decisions.md), [repository setup](docs/repository.md), and [branding](docs/branding.md).

@@ -1,0 +1,46 @@
+# Disposable local integration databases; never use production credentials/data.
+name: querylight-dev
+services:
+  mariadb:
+    image: mariadb:11.4.12
+    environment:
+      MARIADB_DATABASE: querylight_test
+      MARIADB_USER: querylight
+      MARIADB_PASSWORD: querylight-local-only
+      MARIADB_ROOT_PASSWORD: querylight-root-local-only
+      TZ: UTC
+    ports:
+      - "127.0.0.1:${QUERYLIGHT_MARIADB_PORT:-13306}:3306"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./test/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  mysql:
+    image: mysql:8.4.11
+    environment:
+      MYSQL_DATABASE: querylight_test
+      MYSQL_USER: querylight
+      MYSQL_PASSWORD: querylight-local-only
+      MYSQL_ROOT_PASSWORD: querylight-root-local-only
+      TZ: UTC
+    ports:
+      - "127.0.0.1:${QUERYLIGHT_MYSQL_PORT:-13307}:3306"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./test/database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP --host=127.0.0.1 --user=\"$$MYSQL_USER\" --database=\"$$MYSQL_DATABASE\" --execute='SELECT COUNT(*) FROM fixture_ready' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+volumes:
+  mariadb-data:
+  mysql-data:
