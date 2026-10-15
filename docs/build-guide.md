@@ -161,7 +161,7 @@ Checked items have existing evidence from setup or explicit product approval. Un
 - [ ] Inspect favicon and Windows icon at small sizes/in Explorer.
 - [ ] Confirm remote ownership, visibility, authentication, and hosted repository spelling.
 - [ ] Decide licensing and research name availability before public distribution.
-- [x] Initial commits exist (99ac089 and 9fdebd8 observed); current feature work remains uncommitted.
+- [x] Initial commits exist; first workflow committed as 7cb131c. Subsequent fixes require a separate user-authorized commit.
 - [ ] Push only after remote details and push authorization are confirmed.
 
 ### M1A — compatibility and contracts

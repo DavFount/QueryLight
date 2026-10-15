@@ -5,7 +5,7 @@ This build is ready for user testing of connection → explorer → read-only ta
 ## Start
 
 ```powershell
-Set-Location C:\projects\wails\querylight
+Set-Location C:\projects\QueryLight
 docker compose up -d --wait --wait-timeout 240
 .\build\bin\querylight.exe
 ```
@@ -20,6 +20,7 @@ Alternatively use `wails dev` for the same application with reload. The connecti
 - [ ] Open several tables; search filters the explorer; refresh lists works.
 - [ ] Open both servers and switch using the connection selector; each keeps its own tabs/results.
 - [ ] Changing the explorer database does not silently change an existing SQL tab's session. The tab's database is visible above the editor; open a new SQL tab for the newly selected database.
+- [ ] Click New SQL editor, then immediately change the explorer database while the editor opens. The new tab must retain the database requested at click time; subsequent new tabs use the new selection.
 
 ## Data inspection
 
@@ -47,6 +48,7 @@ SELECT REPEAT('x', 100000) AS payload FROM grid_rows LIMIT 100;
 - [ ] Run and Ctrl+Enter produce the same behavior.
 - [ ] Duplicate names retain both columns, and the large result is capped with truncation feedback.
 - [ ] A syntax error leaves SQL text intact and the editor session usable.
+- [ ] Run `DO 1;` in Rows mode: the notice explains that SQL already ran and Statement mode is needed for affected-row counts. In Statement mode, the execution notice remains visible alongside the affected-row feedback.
 - [ ] SELECT SLEEP(15) keeps the UI responsive; Cancel settles the operation and marks the lost editor session honestly. Its text remains available. New SQL session opens a fresh tab.
 - [ ] Switching tabs during a query does not display its result in another tab.
 
@@ -90,3 +92,5 @@ wails build
 The tagged Go integration tests use only localhost fixture ports (including QUERYLIGHT_MARIADB_PORT/QUERYLIGHT_MYSQL_PORT overrides), synthetic credentials, and temporary write tables. Browser tests use Microsoft Edge and a deliberate Wails mock; they verify UI behavior, not the native bridge. The desktop checklist above validates that final bridge/WebView2 path. Install Edge for these browser checks; no separate Playwright browser download is required with the current channel setting.
 
 Verified 2026-10-15: Go unit checks/vet, live integration on MariaDB 11.4.12 and MySQL 8.4.11, and six Edge UI tests passed. Manual WebView2 testing and trusted-certificate TLS fixtures remain pending. A race-detector run has not been performed.
+
+New-PC verification, 2026-10-15 (C:\projects\QueryLight): locked frontend dependency installation, frontend typecheck/build, Go unit tests, go vet, all eight Edge mock tests, and the Windows Wails package build passed. The two additional browser regressions cover database selection during editor creation and notices for zero-column results. Node reports v24.21.0 on this PC. Docker's Linux-engine API returned permission denied during inspection; live integration tests were not rerun here while Docker initializes. Earlier engine results above are historical evidence, not current-PC validation. Native cancellation, Statement writes, connection switching, clipboard, and window-close acceptance remain pending; user reports the UI, table loading, SELECT execution, and oversized-cell labeling work.

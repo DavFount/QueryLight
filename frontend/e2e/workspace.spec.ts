@@ -76,6 +76,10 @@ async function bridge(page: Page) {
         error: null,
       }),
       OpenEditor: async (_id: string, schema: string) => {
+        if ((window as any).__delayEditor) {
+          ;(window as any).__openingSchema = schema
+          await new Promise<void>((resolve) => { (window as any).__finishEditor = resolve })
+        }
         const id = `editor-${++next}`
         editors.set(id, schema)
         return { id, error: null }
@@ -116,7 +120,11 @@ async function bridge(page: Page) {
         if (req.sql.includes('DELAY_START'))
           await new Promise((resolve) => setTimeout(resolve, 500))
         return start(
-          req.mode === 'statement' ? { ...rows(0), columns: [], affectedRows: '2' } : rows(2),
+          req.mode === 'statement'
+            ? { ...rows(0), columns: [], affectedRows: '2', notice: 'Statement executed. No automatic retry.' }
+            : req.sql.includes('NO_COLUMNS')
+              ? { ...rows(0), columns: [], notice: 'No result columns. SQL has already run; it was not retried.' }
+              : rows(2),
           req.sql.includes('SLEEP'),
         )
       },
@@ -165,6 +173,28 @@ test.beforeEach(async ({ page }) => {
 test('connection manager layout', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Make a connection' })).toBeVisible()
   await page.screenshot({ path: 'test-results/connection-manager.png', fullPage: true })
+})
+
+test('opening SQL retains the requested database when explorer selection changes', async ({ page }) => {
+  await connect(page)
+  await page.evaluate(() => { (window as any).__delayEditor = true })
+  await page.getByRole('button', { name: 'New SQL editor', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__openingSchema)).toBe('querylight_test')
+  await page.getByRole('combobox', { name: 'Database', exact: true }).selectOption('information_schema')
+  await page.evaluate(() => (window as any).__finishEditor())
+  await expect(page.getByRole('tab', { name: /SQL 2/ })).toHaveAttribute('title', 'querylight_test · SQL 2')
+  await expect(page.getByRole('textbox', { name: 'SQL statement' })).toContainText('value_samples')
+  await expect(page.getByRole('combobox', { name: 'Database', exact: true })).toHaveValue('information_schema')
+})
+
+test('zero-column results retain execution feedback without implying a retry', async ({ page }) => {
+  await connect(page)
+  await page.getByRole('textbox', { name: 'SQL statement' }).fill('DO 1 /* NO_COLUMNS */')
+  await page.getByRole('button', { name: /▶ Run/ }).click()
+  await expect(page.locator('.result-notice')).toContainText('SQL has already run; it was not retried.')
+  await page.getByLabel('Run as').selectOption('statement')
+  await page.getByRole('button', { name: /▶ Run/ }).click()
+  await expect(page.locator('.result-notice')).toHaveText('Statement executed. No automatic retry.')
 })
 
 test('connection feedback, SQL execution and cancellation preserve text', async ({ page }) => {

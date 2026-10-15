@@ -188,16 +188,17 @@ async function newSQL(w = workspace.value) {
     return
   }
   openingTab.value = true
+  const schema = w.schema
   try {
-    const reply = checked(await db.OpenEditor(w.connection.id, w.schema))
+    const reply = checked(await db.OpenEditor(w.connection.id, schema))
     if (!workspaces.includes(w)) {
       await db.CloseEditor(reply.id)
       return
     }
-    const tab = makeTab('sql', w.schema)
+    const tab = makeTab('sql', schema)
     tab.editorID = reply.id
     tab.title = `SQL ${++sqlNumber}`
-    if (w.schema !== 'querylight_test') tab.sql = 'SELECT VERSION();'
+    if (schema !== 'querylight_test') tab.sql = 'SELECT VERSION();'
     w.tabs.push(tab)
     w.activeTab = tab.id
   } catch (error) {
@@ -641,7 +642,7 @@ onBeforeUnmount(() => {
             }}<button v-if="activeTab.lost" @click="newSQL()">New SQL session</button>
           </p>
           <p
-            v-if="activeTab.result?.notice && activeTab.result.columns.length"
+            v-if="activeTab.result?.notice"
             class="result-notice"
           >
             {{ activeTab.result.notice }}
